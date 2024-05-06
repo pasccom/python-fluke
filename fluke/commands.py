@@ -1,8 +1,12 @@
 try:
-    from .fluke import FvfFile, CurFile, FvsFile
+    from .fvf import FvfFile
+    from .cur import CurFile
+    from .fvs import FvsFile
     from .utils import DataTable, sciFormat, debug, info, warning
 except ImportError:
-    from fluke import FvfFile, CurFile, FvsFile
+    from fvf import FvfFile
+    from cur import CurFile
+    from fvs import FvsFile
     from utils import DataTable, sciFormat, debug, info, warning
 
 import tempfile

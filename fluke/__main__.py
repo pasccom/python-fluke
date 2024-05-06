@@ -1,9 +1,15 @@
 try:
-    from .fluke import FlukeFile, FvfFile, CurFile, FvsFile
+    from .fluke import FlukeFile
+    from .fvf import FvfFile
+    from .cur import CurFile
+    from .fvs import FvsFile
     from .commands import Command
     from .utils import debug, info, warning
 except ImportError:
-    from fluke import FlukeFile, FvfFile, CurFile, FvsFile
+    from fluke import FlukeFile
+    from fvf import FvfFile
+    from cur import CurFile
+    from fvs import FvsFile
     from commands import Command
     from utils import debug, info, warning
 

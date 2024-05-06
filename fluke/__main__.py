@@ -1,21 +1,14 @@
 try:
     from .fluke import FlukeFile, FvfFile, CurFile, FvsFile
-    from .fluke import Command
+    from .commands import Command
+    from .utils import debug, info, warning
 except ImportError:
     from fluke import FlukeFile, FvfFile, CurFile, FvsFile
-    from fluke import Command
+    from commands import Command
+    from utils import debug, info, warning
 
 import argparse
 import textwrap
-
-
-def debug(msg):
-    pass
-    #print(f"DEBUG: {msg}", file=sys.stderr, flush=True)
-
-
-def info(msg):
-    print(f"INFO:  {msg}", file=sys.stderr, flush=True)
 
 
 def applyCommands(commands, flukeFile, cmdArgs):

@@ -1,0 +1,8 @@
+# Installer files:
+/Official/
+
+# Cache files:
+__pycache__/
+
+# Manual test files:
+/Test/

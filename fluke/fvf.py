@@ -9,13 +9,46 @@ import struct
 
 
 class FvfSector(FlukeSector):
-    def __init__(self, f, begin, size, index, *args):
+    """
+    FVF file sector abstraction.
+
+    :param f: The underlying file (it should be a FvfFile).
+    :param begin: The sector beginning.
+    :param size: The sector size.
+    :param index: The sector index in the FVF file
+    """
+
+
+    def __init__(self, f, begin, size, index):
         super().__init__(f, begin)
-        self.size = size
-        self.index = index
+        self.size = size  #: The sector size.
+        self.index = index  #: The sector index
 
 
 class FvfFile(FlukeFile):
+    """
+    This class represents a *Fluke* FVF file.
+
+    :py:class:`FvfFile` instances are iterable. This allows to access the various sectors in the FVF file.
+    The sectors can be any class inheriting :py:class:`FlukeFile`.
+
+    :param path: The path to the *Fluke* file
+    :param f: An optional file object
+
+    .. note::
+        If the file object is not present the file corresponding to path will be opened
+        and data will be read from it. Otherwise, data is read from the file object.
+        The file object argument is mainly for internal purposes.
+
+    .. note::
+        Thanks to the magic mechanism, this class is most simply constructed using::
+
+
+           with FlukeFile('/path/to/fluke_file.fvf') as ff:
+               print(f"{ff}: {ff.version}")
+    """
+
+
     MAGIC = b'FV.FVF\x1a\x00'
 
 
@@ -59,6 +92,12 @@ class FvfFile(FlukeFile):
 
 
     def close(self):
+        """
+        Close the *Fluke* file, if the file is opened.
+
+        .. note::
+            This method should not be used, rely the context manager instead.
+        """
         if self.__sectors is not None:
             for sector in self.__sectors:
                 if sector is not None:
@@ -93,6 +132,12 @@ class FvfFile(FlukeFile):
 
     @property
     def version(self):
+        """
+        FVF file version
+
+        .. note::
+            Currently, only first version FVF files are supported.
+        """
         if self.__version is None:
             self.__readHeader()
         return self.__version

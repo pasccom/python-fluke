@@ -15,6 +15,18 @@ def info(msg):
 
 
 def printStruct(fmt, data):
+    """
+    Print a tuple based on a :py:mod:`struct` format string.
+
+    .. note::
+       This is especially useful for data parsed with :py:func:`struct.unpack`.
+
+    :param fmt: The format (as used in :py:func:`struct.unpack`).
+    :param data: The data to be printed as a ``tuple`` or a ``list``.
+
+    :return: The formatted string.
+    """
+
     d = 0
     f = 0
     n = 0
@@ -61,6 +73,12 @@ def printStruct(fmt, data):
 
 
 def num2str(x):
+    """
+    Print a floating-point number removing useless 0 and dot.
+
+    :param x: The number to print.
+    :return: The number as a string.
+    """
     if x is None:
         return ''
     if type(x) is datetime.datetime:
@@ -78,6 +96,12 @@ def num2str(x):
 
 
 def sciFormat(x):
+    """
+    Print the number using the standard unit prefixes.
+
+    :param x: The number to print.
+    :return: The number a string.
+    """
     prefixes = 'qryzafpnµm kMGTPEZYRQ'
 
     if (x == 0.):
@@ -91,6 +115,14 @@ def sciFormat(x):
 
 
 class DataTable:
+    """
+    Interface class to make a :py:class:`fluke.CurFile` appear as a data table.
+
+    :param f: The underlying :py:class:`fluke.CurFile`.
+    :param curves: Selected curves (as a list of indexes)
+    :param captures: Selected captures (as a list of indexes)
+    """
+
     def __init__(self, f, curves=None, captures=None):
         self.__file = f
         self.__curves = curves
@@ -149,20 +181,29 @@ class DataTable:
 
     @property
     def lines(self):
+        """
+        Number of lines in the data table.
+        """
         return self.__lines
 
 
     @property
     def columns(self):
+        """
+        Number of columns in the data table.
+        """
         return self.__columns
 
 
     @property
     def headers(self):
+        """
+        Data table vertical headers.
+        """
         return self.__headers
 
 
-    def dataLine(self, captures):
+    def __dataLine(self, captures):
         for c in captures:
             if c is not None:
                 x = c.xData
@@ -183,6 +224,9 @@ class DataTable:
 
     @property
     def data(self):
+        """
+        Data table.
+        """
         c = 0
         captures = []
 
@@ -195,17 +239,32 @@ class DataTable:
         s = 0
         while any([c is not None for c in captures]):
             if (self.__captures is None) or (s in self.__captures):
-                for line in self.dataLine(captures):
+                for line in self.__dataLine(captures):
                     yield line
             captures = [(c.next if c is not None else None) for c in captures]
             s += 1
 
 
     def writeHeaders(self, f, delimiter=','):
+        """
+        Helper function to write data table header to the given file.
+
+        :param f: File where data headers should be written to
+        :param delimiter: Field separator.
+        """
         f.write(','.join(self.__headers) + '\n')
 
 
     def writeData(self, f, delimiter=','):
+        """
+        Write data into the given file.
+
+        .. note::
+           As this operation can be lengthy, a progress bar is displayed.
+
+        :param f: File where data headers should be written to
+        :param delimiter: Field separator.
+        """
         l = 0
         prog = Bar(f"Writing {f.name}", fill='=', max=self.__lines, width=80, bar_prefix=' [', bar_suffix='] ')
         for line in self.data:

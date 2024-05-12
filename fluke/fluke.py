@@ -10,6 +10,10 @@ from enum import Enum
 
 
 class MetaFlukeFile(type):
+    """
+    Metaclass implementing the magic allowing to create a *Fluke* file with the right type.
+    The magic is based on the magic header included in *Fluke* files.
+    """
     def __call__(cls, *args):
         if hasattr(cls, 'MAGIC'):
             return super().__call__(*args)
@@ -38,8 +42,29 @@ class MetaFlukeFile(type):
 
 
 class FlukeFile(metaclass=MetaFlukeFile):
+    """
+    This is the main class of *Fluke* file API.
+
+    It creates a Fluke file abstraction whose actual type depends on the given file type,
+    relying on the information given inside the file (magic header), not the extension.
+
+    :param path: The path to the *Fluke* file
+    :param f: An optional file object
+
+    .. note::
+        If the file object is not present the file corresponding to path will be opened
+        and data will be read from it. Otherwise, data is read from the file object.
+        The file object argument is mainly for internal purposes.
+
+    The class implements the context manager interface and should be used as follows::
+
+        with FlukeFile('/path/to/fluke_file.fvf') as ff:
+            print(f"{ff}: {ff.version}")
+    """
+
+
     def __init__(self, path, f=None):
-        self.filePath = path
+        self.filePath = path #: The path to the *Fluke* file.
         self.__file = f
 
         if self.__file is not None:
@@ -66,6 +91,11 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def validate(self):
+        """
+        Validate the *Fluke* file by checking the magic header corresponds.
+
+        :raise ValueError: If this is not the case.
+        """
         if hasattr(self.__class__, 'MAGIC'):
             magic = self.__file.read(len(self.__class__.MAGIC))
             if (magic == self.__class__.MAGIC):
@@ -75,6 +105,12 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def open(self):
+        """
+        Open the *Fluke* file or reset the file pointer (if the file is already opened)
+
+        .. note::
+            This method should not be used, rely the context manager instead.
+        """
         if self.__file is None:
             self.__file = open(self.filePath, 'rb')
             debug(f"Opened {self.filePath}")
@@ -85,6 +121,16 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def seek(self, pos, origin=os.SEEK_SET):
+        """
+        Modify the position of the file pointer.
+
+        :param pos: The offset to be applied to the file pointer.
+        :param orgin: The origin of the displacement:
+
+          - ``os.SEEK_SET`` The offset is relative to the origin
+          - ``os.SEEK_CURRENT`` The offset is relative to the current file pointer position
+          - ``os.SEEK_END`` The offset is relative to the end .`
+        """
         if self.__file is None:
             warning("This file is closed")
             return
@@ -93,6 +139,11 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def tell(self):
+        """
+        Get the position of the file pointer.
+
+        :return: The file pointer position
+        """
         if self.__file is None:
             warning("This file is closed")
             return
@@ -101,6 +152,12 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def read(self, size=-1):
+        """
+        Read data from the file (starting at file pointer position).
+
+        :param size: The number of bytes to read.
+        :return: The bytes read from the file.
+        """
         if self.__file is None:
             warning("This file is closed")
             return
@@ -109,6 +166,12 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def close(self):
+        """
+        Close the *Fluke* file, if the file is opened.
+
+        .. note::
+            This method should not be used, rely the context manager instead.
+        """
         if self.__file is not None:
             self.__file.close()
             debug(f"Closed {self.filePath}")
@@ -116,6 +179,12 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
     def readWordPrefixedString(self, offset):
+        """
+        Read a string prefixed by its length as two bytes at the given offset
+
+        :param offset: The position (relative to the file begining where to read data).
+        :return: The read string as a *Python* string.
+        """
         fmt = '<H'
 
         if self.__file is None:
@@ -130,8 +199,17 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
 
 class FlukeSector:
+    """
+    FVF and FVS files are divided into sectors. This class implements the basic functionnality
+    to parse these sectors as standard Python files.
+
+    :param f: The underlying file (it can be a :py:class:`FlukeFile` or another :py:class:`FlukeSector`).
+    :param begin: The sector beginning.
+    """
+
+
     def __init__(self, f, begin):
-        self.begin = begin
+        self.begin = begin #: The offset to the sector beginning.
 
         self.__file = f
         self.__pos = 0
@@ -142,6 +220,16 @@ class FlukeSector:
 
 
     def seek(self, pos, origin=os.SEEK_SET):
+        """
+        Modify the position of the file pointer.
+
+        :param pos: The offset to be applied to the file pointer.
+        :param orgin: The origin of the displacement:
+
+          - ``os.SEEK_SET`` The offset is relative to the origin
+          - ``os.SEEK_CURRENT`` The offset is relative to the current file pointer position
+          - ``os.SEEK_END`` The offset is relative to the end.
+        """
         if (origin == os.SEEK_SET):
             self.__pos = pos
         elif (origin == os.SEEK_POS):
@@ -154,18 +242,43 @@ class FlukeSector:
 
 
     def tell(self):
+        """
+        Get the position of the file pointer.
+
+        :return: The file pointer position
+        """
         return self.__pos
 
 
     def read(self, size=-1):
+        """
+        Read data from the file (starting at file pointer position).
+
+        .. note::
+            The number of bytes to be read is automatically limited to the number of bytes
+            available in the sector (consequently, this method cannot return data outside the
+            sector.
+
+        :param size: The number of bytes to read.
+        :return: The bytes read from the file.
+        """
         size = min(size, self.size - self.__pos)
-        #print(f"{self.__class__.__name__} 0x{self.size:02X} 0x{self.__pos:02X} 0x{size:02X}")
         if (size == 0):
             return b''
         return self._read(size)
 
 
     def _read(self, size=-1):
+        """
+        Read data from the file (starting at file pointer position).
+
+        .. note::
+            This method allows to read data from the sector without being limited.
+            It should be used only by this class and derived classes.
+
+        :param size: The number of bytes to read.
+        :return: The bytes read from the file.
+        """
         if self.__file is None:
             warning("This sector belongs to a closed file")
             return
@@ -177,4 +290,7 @@ class FlukeSector:
 
 
     def close(self):
+        """
+        Emulate file closing.
+        """
         self.__file = None

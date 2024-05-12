@@ -10,6 +10,21 @@ import datetime
 
 
 class CurCurve:
+    """
+    This class represents a capture of a curve.
+
+    The number of points in the capture can be accesssed using ``len`` on an instance.
+
+    :param f: The underlying file object.
+    :param name: The name of the curve.
+    :param identifier: The identifier of the curve
+    :param offset: The offset of the curve data in the file.
+
+    .. note::
+       Some CUR files may include many successive captures. The next capture
+       can be accesssed using the :py:attr:`next` property of the instance.
+    """
+
     MAGIC = b'FlukeView'
 
     __units = ['', 's', 'Hz', 'V', 'dBm', 'dBV', 'dBW', 'D%+', 'D%-', 'RPM', 'A', '°', '°C', '°F', 'Vs', 'VV', 'Ohm', 'As', 'AA', 'W', 'WW', '%', 'cycles', 'events', 'dB', 'J', 'K', 'Pa', 'm', 'F', 'VAR', 'VA', '%r', '%f', 'PF']
@@ -22,8 +37,8 @@ class CurCurve:
         if type(name) is bytes:
             self.name = name.strip().replace(b'\0', b'').decode()
         else:
-            self.name = name.strip().replace('\0', '')
-        self.identifier = identifier
+            self.name = name.strip().replace('\0', '') #: The name of the curvve (all captures of one cuvrve should have the same name).
+        self.identifier = identifier #: The identifier of the curvve (all captures of one cuvrve should have the same id).
         self.__offset = offset
 
         self.__type = None
@@ -254,6 +269,13 @@ class CurCurve:
 
     @property
     def sampleTime(self):
+        """
+        The sample time of the capture (in s).
+
+        .. note::
+           All captures of the same curve may not have the same sample time.
+           However all curves of the same capture should have the same sample time.
+        """
         if self.__sampleTime is None:
             self.__readData()
         return self.__sampleTime
@@ -261,12 +283,34 @@ class CurCurve:
 
     @property
     def startTime(self):
+        """
+        The start time offset of the capture (in s).
+
+        .. note::
+           All captures of the same curve may not have the same start time offset.
+           However all curves of the same capture should have the same start time offset.
+
+        .. seealso::
+           Property :py:attr:`datetime`
+              For the absolute start time.
+        """
         if self.__timeOffset is None:
             self.__readData()
         return self.__timeOffset
 
     @property
     def endTime(self):
+        """
+        The time offset of the last point in the capture (in s).
+
+        .. note::
+           All captures of the same curve may not have the same end time offset.
+           However all curves of the same capture should have the same end time offset.
+
+        .. note::
+           This is a computed property.
+
+        """
         if (self.__size is None) or (self.__sampleTime is None) or (self.__timeOffset is None):
             self.__readData()
         return self.__timeOffset + self.__sampleTime * self.__size
@@ -274,6 +318,12 @@ class CurCurve:
 
     @property
     def gain(self):
+        """
+        The vertical axis gain to be applied to the raw data.
+
+        .. note::
+           All captures of the same curve may not have the same vertical axis gain.
+        """
         if self.__dataGain is None:
             self.__readData()
         return self.__dataGain
@@ -281,6 +331,12 @@ class CurCurve:
 
     @property
     def offset(self):
+        """
+        The vertical axis offset to be applied to the raw data.
+
+        .. note::
+           All captures of the same curve may not have the same vertical axis offset.
+        """
         if self.__dataOffset is None:
             self.__readData()
         return self.__dataOffset
@@ -288,6 +344,12 @@ class CurCurve:
 
     @property
     def xData(self):
+        """
+        Horizontal (X) axis data for the capture (in s).
+
+        .. note::
+           This property is computed.
+        """
         if (self.__size is None) or (self.__sampleTime is None) or (self.__timeOffset is None):
             self.__readData()
         return [self.__datetime + datetime.timedelta(seconds=self.__sampleTime*i + self.__timeOffset) for i in range(0, self.__size)]
@@ -295,6 +357,19 @@ class CurCurve:
 
     @property
     def yDataRaw(self):
+        """
+        Raw vertical (Y) axis data for the capture.
+
+        .. note::
+           This property returns the actual data contained in the file.
+
+        .. seealso::
+           Property :py:attr:`yData`
+              Improved computation
+
+           Property :py:attr:`yDataFluke`
+              Fluke computation
+        """
         if self.__rawData is None:
             self.__readData()
         return self.__rawData
@@ -302,6 +377,18 @@ class CurCurve:
 
     @property
     def yData(self):
+        """
+        Vertical (Y) axis data for the capture.
+
+        .. note::
+           This property is computed.
+
+        .. seealso::
+           Property :py:attr:`yData`
+              Improved computation
+           Property :py:attr:`yDataRaw`
+              Raw data from file
+        """
         if self.__rawData is None:
             self.__readData()
         if (len(self.__rawData) == 1):
@@ -314,6 +401,18 @@ class CurCurve:
 
     @property
     def yDataFluke(self):
+        """
+        Vertical (Y) axis data for the capture.
+
+        .. note::
+           This property is computed.
+
+        .. seealso::
+           Property :py:attr:`yData`
+              Improved computation
+           Property :py:attr:`yDataRaw`
+              Raw data from file
+        """
         if self.__rawData is None:
             self.__readData()
         if (len(self.__rawData) == 1):
@@ -326,6 +425,9 @@ class CurCurve:
 
     @property
     def xUnit(self):
+        """
+        Unit for horizontal (X) axis.
+        """
         if self.__xUnit is None:
             self.__readData()
         if self.__xUnit is not None:
@@ -335,6 +437,9 @@ class CurCurve:
 
     @property
     def yUnit(self):
+        """
+        Unit for vertical (Y) axis.
+        """
         if self.__yUnit is None:
             self.__readData()
         if self.__yUnit is not None:
@@ -344,16 +449,30 @@ class CurCurve:
 
     @property
     def xLabel(self):
+        """
+        Label for horizontal (X) axis.
+        """
         return f"X ({self.xUnit})"
 
 
     @property
     def yLabel(self):
+        """
+        Label for vertical (Y) axis.
+        """
         return f"{self.name} ({self.yUnit})"
 
 
     @property
     def type(self):
+        """
+        The type of the curve (in some cases many data points may have been recorded
+        for a single instant).
+
+        .. note::
+           The current implemention does not rely on this information,
+           but instead on the number of available raw data vectors.
+        """
         if self.__type is None:
             self.__readHeader()
         return self.__type # TEST
@@ -364,6 +483,13 @@ class CurCurve:
 
     @property
     def description(self):
+        """
+        User provided description for the capture.
+
+        .. seealso::
+           Attribute :py:attr:`name`
+              The name attribute of the capture.
+        """
         if self.__descOffset is None:
             self.__readHeader()
         if self.__desc is None:
@@ -373,6 +499,17 @@ class CurCurve:
 
     @property
     def datetime(self):
+        """
+        The timestamp of the capture (in s).
+
+        .. note::
+           All captures of the same curve should not have the same timestamp.
+           However, all curves of the same capture should have the same timestamp.
+
+        .. seealso::
+           Property :py:attr:`startTime`
+              For the start time offset.
+        """
         if self.__datetime is None:
             self.__readHeader()
         return self.__datetime
@@ -380,12 +517,26 @@ class CurCurve:
 
     @property
     def next(self):
+        """
+        The next capture of the curve.
+        """
         if self.__next is None:
             self.__readHeader()
         return self.__next
 
 
 class CurCurves:
+    """
+    This class represents the list of curves in a CUR file.
+
+    It is of course iterable, each item being a capture of a curve,
+    i.e., a instance of :py:class:`CurCurve`.
+
+    :param f: The underlying file object.
+    :param offset: The offset of the curve data in the file.
+    :param mapping: A mapping to map curves number to actual data..
+    """
+
     def __init__(self, f, offset, mapping=None):
         if (offset <= 0):
             raise ValueError(f"Invalid offset: {offset}")
@@ -464,6 +615,25 @@ class CurCurves:
 
 
 class CurFile(FlukeFile):
+    """
+    This class represents a *Fluke* CUR file.
+
+    :param path: The path to the *Fluke* file
+    :param f: An optional file object
+
+    .. note::
+        If the file object is not present the file corresponding to path will be opened
+        and data will be read from it. Otherwise, data is read from the file object.
+        The file object argument is mainly for internal purposes.
+
+    .. note::
+        Thanks to the magic mechanism, this class is most simply constructed using::
+
+
+           with FlukeFile('/path/to/fluke_file.cur') as ff:
+               print(f"{ff}: {ff.version}")
+    """
+
     MAGIC = b'CUR_'
 
     def __init__(self, path, f=None):
@@ -547,6 +717,12 @@ class CurFile(FlukeFile):
 
     @property
     def version(self):
+        """
+        CUR file version
+
+        .. note::
+            Currently, only CUR files with version below 9.0 (included) are supported.
+        """
         if self.__version is None:
             self.__readHeader()
         return self.__version
@@ -554,6 +730,12 @@ class CurFile(FlukeFile):
 
     @property
     def variant(self):
+        """
+        CUR file variant
+
+        .. note::
+            Currently, only CUR files with variant 10.0 (included) are supported.
+        """
         if self.__variant is None:
             self.__readHeader()
         return self.__variant
@@ -561,6 +743,9 @@ class CurFile(FlukeFile):
 
     @property
     def curves(self):
+        """
+        List of curves contained in the CUR file as an instance of :py:class:`CurCurves`.
+        """
         if self.__curves is None:
             if self.__curvesOffset is None:
                 self.__readHeader()

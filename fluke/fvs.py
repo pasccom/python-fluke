@@ -9,7 +9,11 @@ import struct
 
 
 class MetaFvsSector(type):
-     def __call__(cls, f, begin, *args, **kwArgs):
+    """
+    Metaclass implementing the magic allowing to create a FVS sector with the right type.
+    The magic is based on the sector type (written in the binary data).
+    """
+    def __call__(cls, f, begin, *args, **kwArgs):
         if hasattr(cls, 'TYPE') or (len(cls.__subclasses__()) == 0):
             return super().__call__(f, begin, *args, **kwArgs)
 
@@ -31,6 +35,18 @@ class MetaFvsSector(type):
 
 
 class FvsSector(FlukeSector, metaclass=MetaFvsSector):
+    """
+    This class represents a FVS file sector.
+
+    :param f: Underlying file object.
+    :param begin: Begining of the sector.
+    :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
+
+    .. note::
+       The sector type is automatically determined from the binary data,
+       the instance will have the type corresponding to the sector in the file.
+    """
+
     def __init__(self, f, begin, sizeType='L'):
         super().__init__(f, begin)
 
@@ -50,10 +66,26 @@ class FvsSector(FlukeSector, metaclass=MetaFvsSector):
 
     @property
     def size(self):
+        """
+        FVS sector size (in bytes).
+        """
         return self.__size
 
 
 class FvsSector0x10(FvsSector):
+    """
+    This class represents a FVS file sector divided into subsectors.
+
+    The instances of this class are iterable, each item representing the subsectors,
+    which are instances of subclasses of :py:class:`FvsSector`
+
+    :param f: Underlying file object.
+    :param begin: Begining of the sector.
+    :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
+
+
+    """
+
     TYPE = 0x10
 
     def __init__(self, f, begin, sizeType='L'):
@@ -87,6 +119,14 @@ class FvsSector0x10(FvsSector):
 
 
 class FvsSector0x70(FvsSector):
+    """
+    This class represents an empty FVS file sector inserted at the end of FVS files.
+
+
+    :param f: Underlying file object.
+    :param begin: Begining of the sector.
+    :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
+    """
     TYPE = 0x70
 
     def __init__(self, f, begin, sizeType='L'):
@@ -94,6 +134,16 @@ class FvsSector0x70(FvsSector):
 
 
 class UnknownFvsSector(FvsSector):
+    """
+    This class represents an unknown FVS file sector.
+
+    .. note::
+       Most of the data sectors will have this type, as FVS data sector format has not been retro-engineered (yet).
+
+    :param f: Underlying file object.
+    :param begin: Begining of the sector.
+    :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
+    """
     def __init__(self, f, begin, type, sizeType='L'):
         super().__init__(f, begin, sizeType)
         self.__type = type
@@ -105,10 +155,35 @@ class UnknownFvsSector(FvsSector):
 
     @property
     def type(self):
+        """
+        FVS sector type.
+        """
         return self.__type
 
 
 class FvsFile(FlukeFile):
+    """
+    This class represents a *Fluke* FVS file.
+
+    :py:class:`FvsFile` instances are iterable. This allows to access the various sectors in the FVS file.
+    The sectors can be any class inheriting :py:class:`FvsSector`.
+
+    :param path: The path to the *Fluke* file
+    :param f: An optional file object
+
+    .. note::
+        If the file object is not present the file corresponding to path will be opened
+        and data will be read from it. Otherwise, data is read from the file object.
+        The file object argument is mainly for internal purposes.
+
+    .. note::
+        Thanks to the magic mechanism, this class is most simply constructed using::
+
+
+           with FlukeFile('/path/to/fluke_file.fvs') as ff:
+               print(f"{ff}: {ff.version}")
+    """
+
     MAGIC = b'FV.FVS\x1a\x00'
 
     def __init__(self, path, f=None):
@@ -157,6 +232,12 @@ class FvsFile(FlukeFile):
 
     @property
     def version(self):
+        """
+        FVS file version
+
+        .. note::
+            Currently, only FVS files with version below 4 (included) are supported.
+        """
         if self.__version is None:
             self.__readHeader()
         return self.__version

@@ -1,9 +1,9 @@
 try:
     from .fluke import FlukeFile
-    from .utils import printStruct, debug, info, warning
+    from .utils import printStruct, debug, warning
 except ImportError:
     from fluke import FlukeFile
-    from utils import printStruct, debug, info, warning
+    from utils import printStruct, debug, warning
 
 import struct
 import datetime
@@ -27,18 +27,29 @@ class CurCurve:
 
     MAGIC = b'FlukeView'
 
-    __units = ['', 's', 'Hz', 'V', 'dBm', 'dBV', 'dBW', 'D%+', 'D%-', 'RPM', 'A', '°', '°C', '°F', 'Vs', 'VV', 'Ohm', 'As', 'AA', 'W', 'WW', '%', 'cycles', 'events', 'dB', 'J', 'K', 'Pa', 'm', 'F', 'VAR', 'VA', '%r', '%f', 'PF']
+    __units = [
+           '',   's',     'Hz',      'V', 'dBm',  # noqa: E131
+        'dBV', 'dBW',    'D%+',    'D%-', 'RPM',  # noqa: E131
+          'A',   '°',     '°C',     '°F',  'Vs',  # noqa: E131
+         'VV', 'Ohm',     'As',     'AA',   'W',  # noqa: E131
+         'WW',   '%', 'cycles', 'events',  'dB',  # noqa: E131
+          'J',   'K',     'Pa',      'm',   'F',  # noqa: E131
+        'VAR',  'VA',     '%r',     '%f',  'PF'   # noqa: E131
+    ]
 
     def __init__(self, f, name, identifier, offset):
         if (offset <= 0):
             raise ValueError(f"Invalid offset: {offset}")
 
         self.__file = f
+        #: The name of the curve (all captures of one curve should have the same name).
+        self.name = ''
         if type(name) is bytes:
             self.name = name.strip().replace(b'\0', b'').decode()
         else:
-            self.name = name.strip().replace('\0', '') #: The name of the curvve (all captures of one cuvrve should have the same name).
-        self.identifier = identifier #: The identifier of the curvve (all captures of one cuvrve should have the same id).
+            self.name = name.strip().replace('\0', '')
+        #: The identifier of the curve (all captures of one curve should have the same id).
+        self.identifier = identifier
         self.__offset = offset
 
         self.__type = None
@@ -48,7 +59,7 @@ class CurCurve:
 
         self.__next = None
 
-        self.__offset7 = None # TODO rename
+        self.__offset7 = None  # TODO rename
         self.__offsetData = None
 
         self.__xUnit = None
@@ -61,14 +72,11 @@ class CurCurve:
         self.__dataOffset = None
         self.__rawData = None
 
-
     def __str__(self):
         return f"{self.name} ({self.identifier})"
 
-
     def __repr__(self):
         return f"CurCurve(\"{self.name}\", {self.identifier}, 0x{self.__offset:08x})"
-
 
     def __readHeader(self):
         fmt = '<LL2s2s2s4s2s2sLLHHdLL'
@@ -98,12 +106,13 @@ class CurCurve:
         # data[-1] Offset to next header
 
         if self.__file.seek(self.__offset) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         self.__type = data[0]
         self.__descOffset = data[1] if (data[1] > 0) else None
-        self.__datetime = datetime.datetime(int(data[5]), int(data[6]), int(data[7]), int(data[2]), int(data[3]), int(data[4]))
+        self.__datetime = datetime.datetime(int(data[5]), int(data[6]), int(data[7]),
+                                            int(data[2]), int(data[3]), int(data[4]))
         debug(f'CurveHeader: {printStruct(fmt, data)}')
 
         self.__offset7 = data[9]
@@ -111,16 +120,15 @@ class CurCurve:
         if (data[-1] > 0):
             self.__next = CurCurve(self.__file, self.name, self.identifier, data[-1])
 
-        #self.__readTable7() # TEST
+        # self.__readTable7()  # TEST
 
-
-    def __readTable7(self): # TODO rename
+    def __readTable7(self):  # TODO rename
         if self.__offset7 is None:
             self.__readHeader()
         if self.__offset7 is None:
             return
 
-        fmt = '<HLLLL' # TODO Table 7
+        fmt = '<HLLLL'  # TODO Table 7
         # data[0] is ignored (always 0)
         # data[1] is ignored (always 0)
         # data[2] is ignored (always 0)
@@ -128,28 +136,28 @@ class CurCurve:
         # data[4] is ignored (always 0)
 
         if self.__file.seek(self.__offset7) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         debug(f'Table 7: {printStruct(fmt, data)}')
 
-        fmt = '<LL' # TODO Table 8
+        fmt = '<LL'  # TODO Table 8
         # data[0] is offset to table 9
         # data(1] is ignored (always 0)
 
         if self.__file.seek(data[3]) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         debug(f'Table 8: {printStruct(fmt, data)}')
 
-        fmt = '<H16sL' # TODO Table 9
+        fmt = '<H16sL'  # TODO Table 9
         # data[0] must equal to 1
         # data[1] must equal to FlukeView (padded to 16 bytes with null characters)
         # data[2] is offset to tabme 10
 
         if self.__file.seek(data[0]) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         debug(f'Table 9: {printStruct(fmt, data)}')
@@ -162,17 +170,16 @@ class CurCurve:
             warning(f'Invalid table 9 at 0x{self.__file.tell() - struct.calcsize(fmt):08x}')
             return
 
-        fmt = '<HL' # TODO Table 10
+        fmt = '<HL'  # TODO Table 10
         # data[0] is ignored (always 17)
         # data[1] points to a name
 
         if self.__file.seek(data[2]) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         debug(f'Table 10: {printStruct(fmt, data)}')
         debug(f'Name: {self.__file.readWordPrefixedString(data[1])}')
-
 
     def __readData(self):
         if self.__offsetData is None:
@@ -184,7 +191,7 @@ class CurCurve:
         # data[0] table size
 
         if self.__file.seek(self.__offsetData) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
 
@@ -224,7 +231,7 @@ class CurCurve:
                 # data[15] Data type
 
                 if self.__file.seek(o) is None:
-                    raise RuntimeError(f"File is not open")
+                    raise RuntimeError("File is not open")
 
                 data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
                 debug(f'Data header: {printStruct(fmt, data)}')
@@ -243,14 +250,13 @@ class CurCurve:
                         self.__dataOffset = data[6]
                     self.__rawData += [self.__readVector(data[1], self.__size)]
 
-
     def __readVector(self, offset, size):
         fmt = '<HH'
         # data[0]
         # data[1] byte size
 
         if self.__file.seek(offset) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
 
@@ -259,13 +265,11 @@ class CurCurve:
         else:
             fmt = f'<{size}l'
 
-        data =  struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
+        data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         return data
-
 
     def __len__(self):
         return self.__size
-
 
     @property
     def sampleTime(self):
@@ -279,7 +283,6 @@ class CurCurve:
         if self.__sampleTime is None:
             self.__readData()
         return self.__sampleTime
-
 
     @property
     def startTime(self):
@@ -315,7 +318,6 @@ class CurCurve:
             self.__readData()
         return self.__timeOffset + self.__sampleTime * self.__size
 
-
     @property
     def gain(self):
         """
@@ -327,7 +329,6 @@ class CurCurve:
         if self.__dataGain is None:
             self.__readData()
         return self.__dataGain
-
 
     @property
     def offset(self):
@@ -341,7 +342,6 @@ class CurCurve:
             self.__readData()
         return self.__dataOffset
 
-
     @property
     def xData(self):
         """
@@ -352,8 +352,8 @@ class CurCurve:
         """
         if (self.__size is None) or (self.__sampleTime is None) or (self.__timeOffset is None):
             self.__readData()
-        return [self.__datetime + datetime.timedelta(seconds=self.__sampleTime*i + self.__timeOffset) for i in range(0, self.__size)]
-
+        return [self.__datetime + datetime.timedelta(seconds=self.__sampleTime*i + self.__timeOffset)  # noqa: E501
+                for i in range(0, self.__size)]
 
     @property
     def yDataRaw(self):
@@ -374,7 +374,6 @@ class CurCurve:
             self.__readData()
         return self.__rawData
 
-
     @property
     def yData(self):
         """
@@ -391,13 +390,14 @@ class CurCurve:
         """
         if self.__rawData is None:
             self.__readData()
-        if (len(self.__rawData) == 1):
+        t = len(self.__rawData)
+        if (t == 1):
             return [self.__dataGain*d + self.__dataOffset for d in self.__rawData[0]]
-        elif (len(self.__rawData) == 2):
-            return [self.__dataGain*sum(d)/len(d) + self.__dataOffset for d in zip(*self.__rawData)]
+        elif (t == 2):
+            return [self.__dataGain*sum(d)/len(d) + self.__dataOffset
+                    for d in zip(*self.__rawData)]
         else:
-            raise NotImplementedError(f"Files with {len(self.__rawData)} data vectors are not currently supported")
-
+            raise NotImplementedError(f"Files with {t} data vectors are not currently supported")
 
     @property
     def yDataFluke(self):
@@ -415,13 +415,14 @@ class CurCurve:
         """
         if self.__rawData is None:
             self.__readData()
-        if (len(self.__rawData) == 1):
+        t = len(self.__rawData)
+        if (t == 1):
             return [self.__dataGain*d + self.__dataOffset for d in self.__rawData[0]]
-        elif (len(self.__rawData) == 2):
-            return [self.__dataGain*int(sum(d)/len(d)) + self.__dataOffset for d in zip(*self.__rawData)]
+        elif (t == 2):
+            return [self.__dataGain*int(sum(d)/len(d)) + self.__dataOffset
+                    for d in zip(*self.__rawData)]
         else:
-            raise NotImplementedError(f"Files with {len(self.__rawData)} data vectors are not currently supported")
-
+            raise NotImplementedError(f"Files with {t} data vectors are not currently supported")
 
     @property
     def xUnit(self):
@@ -434,7 +435,6 @@ class CurCurve:
             return CurCurve.__units[self.__xUnit]
         return ''
 
-
     @property
     def yUnit(self):
         """
@@ -446,7 +446,6 @@ class CurCurve:
             return CurCurve.__units[self.__yUnit]
         return ''
 
-
     @property
     def xLabel(self):
         """
@@ -454,14 +453,12 @@ class CurCurve:
         """
         return f"X ({self.xUnit})"
 
-
     @property
     def yLabel(self):
         """
         Label for vertical (Y) axis.
         """
         return f"{self.name} ({self.yUnit})"
-
 
     @property
     def type(self):
@@ -475,11 +472,10 @@ class CurCurve:
         """
         if self.__type is None:
             self.__readHeader()
-        return self.__type # TEST
+        return self.__type  # TEST
         types = [0, 1, 1, None, 2, None, 2, None, 1, None, None, None, 2]
         if (self.__type < len(types)):
             return types[self.__type]
-
 
     @property
     def description(self):
@@ -495,7 +491,6 @@ class CurCurve:
         if self.__desc is None:
             self.__desc = self.__file.readWordPrefixedString(self.__descOffset)
         return self.__desc
-
 
     @property
     def datetime(self):
@@ -513,7 +508,6 @@ class CurCurve:
         if self.__datetime is None:
             self.__readHeader()
         return self.__datetime
-
 
     @property
     def next(self):
@@ -546,14 +540,12 @@ class CurCurves:
         self.__mapping = mapping
         self.__curves = None
 
-
     def __len__(self):
         if self.__mapping is not None:
             return len(self.__mapping)
         if self.__curves is None:
             self.__readNumber()
         return len(self.__curves)
-
 
     def __getitem__(self, curve):
         if self.__curves is None:
@@ -570,7 +562,6 @@ class CurCurves:
         if self.__curves[curve] is None:
             self.__readCurve(curve)
         return self.__curves[curve]
-
 
     def __iter__(self):
         if self.__curves is None:
@@ -590,17 +581,15 @@ class CurCurves:
                 self.__readCurve(curve)
             yield self.__curves[curve]
 
-
     def __readNumber(self):
         fmt = '<H'
         # Number of curves
 
         if self.__file.seek(self.__offset) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
         self.__curves = [None] * data[0]
-
 
     def __readCurve(self, c):
         fmt = '<12sHL'
@@ -609,9 +598,10 @@ class CurCurves:
         # data[2] Curve offset
 
         if self.__file.seek(self.__offset + 2 + struct.calcsize(fmt) * c) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
-        self.__curves[c] = CurCurve(self.__file, *struct.unpack(fmt, self.__file.read(struct.calcsize(fmt))))
+        data = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
+        self.__curves[c] = CurCurve(self.__file, *data)
 
 
 class CurFile(FlukeFile):
@@ -660,7 +650,7 @@ class CurFile(FlukeFile):
         # data[7] Offset to mapping table
 
         if self.seek(4) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.read(struct.calcsize(fmt)))
 
@@ -683,7 +673,6 @@ class CurFile(FlukeFile):
         if (self.__version > 9.0):
             warning(f"Unsupported CUR file version: {self.__version}")
 
-
     def __readMapping(self):
         if self.__mappingOffset is None:
             self.__readHeader()
@@ -694,7 +683,7 @@ class CurFile(FlukeFile):
         # Number of items
 
         if self.seek(self.__mappingOffset) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         (mappingLen, ) = struct.unpack(fmt, self.read(struct.calcsize(fmt)))
 
@@ -714,7 +703,6 @@ class CurFile(FlukeFile):
                 'curveIndex': data[3],
             }]
 
-
     @property
     def version(self):
         """
@@ -727,7 +715,6 @@ class CurFile(FlukeFile):
             self.__readHeader()
         return self.__version
 
-
     @property
     def variant(self):
         """
@@ -739,7 +726,6 @@ class CurFile(FlukeFile):
         if self.__variant is None:
             self.__readHeader()
         return self.__variant
-
 
     @property
     def curves(self):

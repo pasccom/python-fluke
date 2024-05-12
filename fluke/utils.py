@@ -7,7 +7,7 @@ from warnings import warn as warning
 
 def debug(msg):
     pass
-    #print(f"DEBUG: {msg}", file=sys.stderr, flush=True)
+    # print(f"DEBUG: {msg}", file=sys.stderr, flush=True)
 
 
 def info(msg):
@@ -146,26 +146,26 @@ class DataTable:
                         if (len(captureStartTimes) <= s):
                             captureStartTimes += [capture.startTime]
                         elif (captureStartTimes[s] != capture.startTime):
-                            warning(f"Inconsistent start time for curve {c}[{s}]. Skipping capture.")
+                            warning(f"Inconsistent start time for curve {c}[{s}]. Skipping capture.")  # noqa: E501
                             captureOk = False
                         # Sample time
                         if (len(captureSampleTimes) <= s):
                             captureSampleTimes += [capture.sampleTime]
                         elif (captureSampleTimes[s] != capture.sampleTime):
-                            warning(f"Inconsistent sample time for curve {c}[{s}]. Skipping capture.")
+                            warning(f"Inconsistent sample time for curve {c}[{s}]. Skipping capture.")  # noqa: E501
                             captureOk = False
                         # X data
                         if (len(self.__headers) <= 0):
                             self.__headers += [capture.xLabel]
                         elif (self.__headers[0] != capture.xLabel):
-                            warning(f"Inconsistent X data for curve {c}[{s}]. Skipping capture.")
+                            warning(f"Inconsistent X data for curve {c}[{s}]. Skipping capture.")  # noqa: E501
                             captureOk = False
                         # Y data
                         if (len(self.__headers) <= c + 1):
                             self.__headers += [capture.yLabel]
                         elif (self.__headers[c + 1] != capture.yLabel):
                             debug(f"\"{self.__headers[c + 1]}\" != \"{capture.yLabel}\"")
-                            warning(f"Inconsistent Y data for curve {c}[{s}]. Skipping capture.")
+                            warning(f"Inconsistent Y data for curve {c}[{s}]. Skipping capture.")  # noqa: E501
                             captureOk = False
                     if captureOk:
                         self.__captures += [s]
@@ -174,10 +174,8 @@ class DataTable:
                     s += 1
                 c += 1
 
-
         self.__lines = self.lines // c
         self.__columns = c
-
 
     @property
     def lines(self):
@@ -186,7 +184,6 @@ class DataTable:
         """
         return self.__lines
 
-
     @property
     def columns(self):
         """
@@ -194,14 +191,12 @@ class DataTable:
         """
         return self.__columns
 
-
     @property
     def headers(self):
         """
         Data table vertical headers.
         """
         return self.__headers
-
 
     def __dataLine(self, captures):
         for c in captures:
@@ -215,12 +210,11 @@ class DataTable:
             line = [x[i]]
             for c in captures:
                 if c is not None:
-                    #line += [c.yData[i]]
-                    line += [c.yDataFluke[i]]
+                    line += [c.yData[i]]
+                    # line += [c.yDataFluke[i]]
                 else:
                     line += None
             yield line
-
 
     @property
     def data(self):
@@ -235,7 +229,6 @@ class DataTable:
                 captures += [curve]
             c += 1
 
-
         s = 0
         while any([c is not None for c in captures]):
             if (self.__captures is None) or (s in self.__captures):
@@ -243,7 +236,6 @@ class DataTable:
                     yield line
             captures = [(c.next if c is not None else None) for c in captures]
             s += 1
-
 
     def writeHeaders(self, f, delimiter=','):
         """
@@ -253,7 +245,6 @@ class DataTable:
         :param delimiter: Field separator.
         """
         f.write(','.join(self.__headers) + '\n')
-
 
     def writeData(self, f, delimiter=','):
         """
@@ -265,13 +256,18 @@ class DataTable:
         :param f: File where data headers should be written to
         :param delimiter: Field separator.
         """
-        l = 0
-        prog = Bar(f"Writing {f.name}", fill='=', max=self.__lines, width=80, bar_prefix=' [', bar_suffix='] ')
+        nl = 0
+        prog = Bar(
+            f"Writing {f.name}",
+            fill='=',
+            max=self.__lines,
+            width=80,
+            bar_prefix=' [',
+            bar_suffix='] '
+        )
         for line in self.data:
-            f.write(delimiter.join([num2str(l) for l in line]) + '\n')
-            l += 1
-            prog.suffix = f'{l} / {self.__lines} lines'
-            prog.goto(l)
+            f.write(delimiter.join([num2str(c) for c in line]) + '\n')
+            nl += 1
+            prog.suffix = f'{nl} / {self.__lines} lines'
+            prog.goto(nl)
         print()
-
-

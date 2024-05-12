@@ -2,13 +2,14 @@ try:
     from .fvf import FvfFile
     from .cur import CurFile
     from .fvs import FvsFile
-    from .utils import DataTable, sciFormat, debug, info, warning
+    from .utils import DataTable, sciFormat, warning
 except ImportError:
     from fvf import FvfFile
     from cur import CurFile
     from fvs import FvsFile
-    from utils import DataTable, sciFormat, debug, info, warning
+    from utils import DataTable, sciFormat, warning
 
+import os
 import tempfile
 import subprocess
 import textwrap
@@ -24,14 +25,14 @@ class Command:
     def flag(cls):
         name = cls.__name__.replace('Command', '')
         flag = ''
-        for l in name:
+        for letter in name:
             if (len(flag) == 0):
-                flag += l.lower()
-            elif l.isupper():
+                flag += letter.lower()
+            elif letter.isupper():
                 flag += '-'
-                flag += l.lower()
+                flag += letter.lower()
             else:
-                flag += l
+                flag += letter
         return flag
 
     @classmethod
@@ -69,7 +70,6 @@ class FileVariantCommand(Command):
     _text = True
     _appliesToTypes = [CurFile]
 
-
     def __init__(self, f):
         print(f"  - variant: {f.variant}")
 
@@ -82,7 +82,6 @@ class SectorNumberCommand(Command):
 
     _text = True
     _appliesToTypes = [FvfFile, FvsFile]
-
 
     def __init__(self, f):
         print(f"  - number of sectors: {len(f)}")
@@ -97,8 +96,6 @@ class ListSectorsCommand(Command):
     _text = True
     _appliesToTypes = [FvfFile, FvsFile]
 
-
-
     def printList(self, f, indent=0):
         try:
             s = 0
@@ -108,7 +105,6 @@ class ListSectorsCommand(Command):
                 s += 1
         except TypeError:
             pass
-
 
     def __init__(self, f):
         self.printList(f)
@@ -123,7 +119,6 @@ class CurveNumberCommand(Command):
     _text = True
     _appliesToTypes = [CurFile]
 
-
     def __init__(self, f):
         print(f"  - number of curves: {len(f.curves)}")
 
@@ -136,7 +131,6 @@ class ListCurvesCommand(Command):
 
     _text = True
     _appliesToTypes = [CurFile]
-
 
     def __init__(self, f):
         c = 0
@@ -154,7 +148,6 @@ class CaptureNumberCommand(Command):
     _text = True
     _appliesToTypes = [CurFile]
 
-
     @staticmethod
     def countCaptures(curve):
         n = 0
@@ -162,7 +155,6 @@ class CaptureNumberCommand(Command):
             curve = curve.next
             n += 1
         return n
-
 
     def __init__(self, f, curves=None):
         c = 0
@@ -181,7 +173,6 @@ class ListCapturesCommand(Command):
     _text = True
     _appliesToTypes = [CurFile]
 
-
     def __init__(self, f, curves=None, captures=None):
         c = 0
         for curve in f.curves:
@@ -190,9 +181,9 @@ class ListCapturesCommand(Command):
                 s = 0
                 while capture is not None:
                     if (captures is None) or (s in captures):
-                        print(f"  - curve {c} capture {s} ({capture.type}): \"{capture.description}\" at {capture.datetime} ")
-                        print(f"      * X-axis: Ts={sciFormat(capture.sampleTime)}{capture.xUnit} {sciFormat(capture.startTime)}{capture.xUnit}..{sciFormat(capture.endTime)}{capture.xUnit}")
-                        print(f"      * Y-axis: {sciFormat(capture.gain)}{capture.yUnit} + {sciFormat(capture.offset)}{capture.yUnit}")
+                        print(f"  - curve {c} capture {s} ({capture.type}): \"{capture.description}\" at {capture.datetime}")  # noqa: E501
+                        print(f"      * X-axis: Ts={sciFormat(capture.sampleTime)}{capture.xUnit} {sciFormat(capture.startTime)}{capture.xUnit}..{sciFormat(capture.endTime)}{capture.xUnit}")  # noqa: E501
+                        print(f"      * Y-axis: {sciFormat(capture.gain)}{capture.yUnit} + {sciFormat(capture.offset)}{capture.yUnit}")  # noqa: E501
                     capture = capture.next
                     s += 1
                 c += 1
@@ -206,7 +197,6 @@ class ExportCapturesCommand(Command):
 
     _text = False
     _appliesToTypes = [CurFile]
-
 
     def __init__(self, f, fileName=None, curves=None, captures=None):
         table = DataTable(f, curves, captures)
@@ -230,7 +220,6 @@ class DisplayCapturesCommand(Command):
     _text = False
     _appliesToTypes = [CurFile]
 
-
     def __init__(self, f, curves=None, captures=None):
         table = DataTable(f, curves, captures)
 
@@ -243,7 +232,10 @@ class DisplayCapturesCommand(Command):
             for c in range(0, table.columns):
                 if (c > 0):
                     gpFile.write("re")
-                gpFile.write(f"plot '{datFile.name}' using 1:{c + 2} with lines title '{table.headers[c + 1]}'\n")
+                gpFile.write(f"plot '{datFile.name}' \
+                               using 1:{c + 2} \
+                               with lines \
+                               title '{table.headers[c + 1]}'\n")
 
             table.writeData(datFile, delimiter=' ')
 

@@ -1,9 +1,9 @@
 try:
     from .fluke import FlukeFile, FlukeSector
-    from .utils import printStruct, debug, info, warning
+    from .utils import debug, warning
 except ImportError:
     from fluke import FlukeFile, FlukeSector
-    from utils import printStruct, debug, info, warning
+    from utils import debug, warning
 
 import struct
 
@@ -13,14 +13,15 @@ class MetaFvsSector(type):
     Metaclass implementing the magic allowing to create a FVS sector with the right type.
     The magic is based on the sector type (written in the binary data).
     """
+
     def __call__(cls, f, begin, *args, **kwArgs):
         if hasattr(cls, 'TYPE') or (len(cls.__subclasses__()) == 0):
             return super().__call__(f, begin, *args, **kwArgs)
 
         if f.seek(begin) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
-        fmt = f'<B'
+        fmt = '<B'
         data = f.read(struct.calcsize(fmt))
         if (len(data) == 0):
             return
@@ -50,19 +51,16 @@ class FvsSector(FlukeSector, metaclass=MetaFvsSector):
     def __init__(self, f, begin, sizeType='L'):
         super().__init__(f, begin)
 
-
         if self.seek(1) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         self.__size = 1
         fmt = f'<{sizeType}'
         data = struct.unpack(fmt, self._read(struct.calcsize(fmt)))
         self.__size += struct.calcsize(fmt) + data[0]
 
-
     def __repr__(self):
         return f"{self.__class__.__name__}(0x{self.begin:02X}, 0x{self.__size:02X})"
-
 
     @property
     def size(self):
@@ -82,8 +80,6 @@ class FvsSector0x10(FvsSector):
     :param f: Underlying file object.
     :param begin: Begining of the sector.
     :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
-
-
     """
 
     TYPE = 0x10
@@ -93,7 +89,6 @@ class FvsSector0x10(FvsSector):
 
         self.__sizeType = sizeType
         self.__sectors = []
-
 
     def __iter__(self):
         currentSector = None
@@ -111,7 +106,11 @@ class FvsSector0x10(FvsSector):
             yield currentSector
 
         while True:
-            currentSector = FvsSector(self, currentSector.begin + currentSector.size, self.__sizeType)
+            currentSector = FvsSector(
+                self,
+                currentSector.begin + currentSector.size,
+                self.__sizeType
+            )
             self.__sectors += [currentSector]
             if currentSector is None:
                 break
@@ -127,6 +126,7 @@ class FvsSector0x70(FvsSector):
     :param begin: Begining of the sector.
     :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
     """
+
     TYPE = 0x70
 
     def __init__(self, f, begin, sizeType='L'):
@@ -138,20 +138,20 @@ class UnknownFvsSector(FvsSector):
     This class represents an unknown FVS file sector.
 
     .. note::
-       Most of the data sectors will have this type, as FVS data sector format has not been retro-engineered (yet).
+       Most of the data sectors will have this type, as FVS data sector format
+       has not been retro-engineered (yet).
 
     :param f: Underlying file object.
     :param begin: Begining of the sector.
     :param sizeType: The Type for the size (``'L'`` represents 4-byte size).
     """
+
     def __init__(self, f, begin, type, sizeType='L'):
         super().__init__(f, begin, sizeType)
         self.__type = type
 
-
     def __repr__(self):
         return super().__repr__().replace('(', f'(0x{self.__type:02X}, ')
-
 
     @property
     def type(self):
@@ -165,7 +165,8 @@ class FvsFile(FlukeFile):
     """
     This class represents a *Fluke* FVS file.
 
-    :py:class:`FvsFile` instances are iterable. This allows to access the various sectors in the FVS file.
+    :py:class:`FvsFile` instances are iterable. This allows to access
+    the various sectors in the FVS file.
     The sectors can be any class inheriting :py:class:`FvsSector`.
 
     :param path: The path to the *Fluke* file
@@ -192,12 +193,11 @@ class FvsFile(FlukeFile):
         self.__version = None
         self.__sectors = []
 
-
     def __readHeader(self):
         fmt = '<HH'
 
         if self.seek(8) is None:
-            raise RuntimeError(f"File is not open")
+            raise RuntimeError("File is not open")
 
         data = struct.unpack(fmt, self.read(struct.calcsize(fmt)))
         self.__version = data[1]
@@ -206,10 +206,8 @@ class FvsFile(FlukeFile):
         else:
             self.__sectors = [FvsSector(self, data[0] + 10, 'L')]
 
-
         if (self.__version > 4):
             warning(f"Unsupported FVS file version: {self.__version}")
-
 
     def __iter__(self):
         if (len(self.__sectors) == 0):
@@ -229,7 +227,6 @@ class FvsFile(FlukeFile):
             if type(currentSector) is not FvsSector0x70:
                 yield currentSector
 
-
     @property
     def version(self):
         """
@@ -241,4 +238,3 @@ class FvsFile(FlukeFile):
         if self.__version is None:
             self.__readHeader()
         return self.__version
-

@@ -1,12 +1,10 @@
 try:
-    from .utils import printStruct, debug, info, warning
+    from .utils import debug, info, warning
 except ImportError:
-    from utils import printStruct, debug, info, warning
+    from utils import debug, info, warning
 
 import os
 import struct
-
-from enum import Enum
 
 
 class MetaFlukeFile(type):
@@ -25,7 +23,6 @@ class MetaFlukeFile(type):
                 return MetaFlukeFile.__createFlukeFile(cls, f, *args)
 
         return super().__call__(*args)
-
 
     @staticmethod
     def __createFlukeFile(cls, f, *args):
@@ -62,33 +59,27 @@ class FlukeFile(metaclass=MetaFlukeFile):
             print(f"{ff}: {ff.version}")
     """
 
-
     def __init__(self, path, f=None):
-        self.filePath = path #: The path to the *Fluke* file.
+        self.filePath = path  #: The path to the *Fluke* file.
         self.__file = f
 
         if self.__file is not None:
             self.__file.seek(0)
             self.validate()
 
-
     def __str__(self):
         return f"{self.filePath}"
 
-
     def __repr__(self):
         return f"{self.__class__.__name__}({self.filePath})"
-
 
     def __enter__(self):
         self.open()
         return self
 
-
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
         return False
-
 
     def validate(self):
         """
@@ -102,7 +93,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
                 info(f"Validated magic for {self.__class__.__name__}")
             else:
                 raise ValueError(f"Invalid magic: {magic}")
-
 
     def open(self):
         """
@@ -118,7 +108,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
             self.__file.seek(0)
 
         self.validate()
-
 
     def seek(self, pos, origin=os.SEEK_SET):
         """
@@ -137,7 +126,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
         return self.__file.seek(pos, origin)
 
-
     def tell(self):
         """
         Get the position of the file pointer.
@@ -149,7 +137,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
             return
 
         return self.__file.tell()
-
 
     def read(self, size=-1):
         """
@@ -164,7 +151,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
 
         return self.__file.read(size)
 
-
     def close(self):
         """
         Close the *Fluke* file, if the file is opened.
@@ -176,7 +162,6 @@ class FlukeFile(metaclass=MetaFlukeFile):
             self.__file.close()
             debug(f"Closed {self.filePath}")
             self.__file = None
-
 
     def readWordPrefixedString(self, offset):
         """
@@ -192,10 +177,10 @@ class FlukeFile(metaclass=MetaFlukeFile):
             return
 
         self.__file.seek(offset)
-        l = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
-        if (l[0] == 0):
+        length = struct.unpack(fmt, self.__file.read(struct.calcsize(fmt)))
+        if (length[0] == 0):
             return ''
-        return self.__file.read(l[0]).decode()
+        return self.__file.read(length[0]).decode()
 
 
 class FlukeSector:
@@ -203,21 +188,19 @@ class FlukeSector:
     FVF and FVS files are divided into sectors. This class implements the basic functionnality
     to parse these sectors as standard Python files.
 
-    :param f: The underlying file (it can be a :py:class:`FlukeFile` or another :py:class:`FlukeSector`).
+    :param f: The underlying file (it can be a :py:class:`FlukeFile` or
+       another :py:class:`FlukeSector`).
     :param begin: The sector beginning.
     """
 
-
     def __init__(self, f, begin):
-        self.begin = begin #: The offset to the sector beginning.
+        self.begin = begin  #: The offset to the sector beginning.
 
         self.__file = f
         self.__pos = 0
 
-
     def __repr__(self):
         return f"{self.__class__.__name__}(0x{self.begin:08x}, 0x{self.size:08x})"
-
 
     def seek(self, pos, origin=os.SEEK_SET):
         """
@@ -240,7 +223,6 @@ class FlukeSector:
             raise ValueError(f"Invalid seek origin: {origin}")
         return self.__pos
 
-
     def tell(self):
         """
         Get the position of the file pointer.
@@ -248,7 +230,6 @@ class FlukeSector:
         :return: The file pointer position
         """
         return self.__pos
-
 
     def read(self, size=-1):
         """
@@ -266,7 +247,6 @@ class FlukeSector:
         if (size == 0):
             return b''
         return self._read(size)
-
 
     def _read(self, size=-1):
         """
@@ -287,7 +267,6 @@ class FlukeSector:
         r = self.__file.read(size)
         self.__pos += len(r)
         return r
-
 
     def close(self):
         """

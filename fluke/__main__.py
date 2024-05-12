@@ -4,14 +4,14 @@ try:
     from .cur import CurFile
     from .fvs import FvsFile
     from .commands import Command
-    from .utils import debug, info, warning
+    from .utils import debug
 except ImportError:
     from fluke import FlukeFile
     from fvf import FvfFile
     from cur import CurFile
     from fvs import FvsFile
     from commands import Command
-    from utils import debug, info, warning
+    from utils import debug
 
 import argparse
 import textwrap
@@ -124,10 +124,14 @@ def main():
 
     for filePath in args.filePath:
         with FlukeFile(filePath) as flukeFile:
-            if (type(flukeFile) is FvfFile) and hasattr(args, 'sectors') and (args.sectors is not None):
+            if (type(flukeFile) is FvfFile)      \
+                    and hasattr(args, 'sectors') \
+                    and (args.sectors is not None):
                 for s in args.sectors:
                     applyCommands(args.commands, flukeFile[s], args)
-            elif (type(flukeFile) is FvfFile) and hasattr(args, 'sector_type') and (args.sector_type is not None):
+            elif (type(flukeFile) is FvfFile)        \
+                    and hasattr(args, 'sector_type') \
+                    and (args.sector_type is not None):
                 for sector in flukeFile:
                     if type(sector) is args.sector_type:
                         applyCommands(args.commands, sector, args)

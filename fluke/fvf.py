@@ -108,6 +108,12 @@ class FvfFile(FlukeFile):
 
     def __readHeader(self):
         fmt = '<HLLLHL'
+        # data[0] version
+        # data[1]
+        # data[2]
+        # data[3]
+        # data[4] sector number
+        # data[5]
 
         if self.seek(8) is None:
             raise RuntimeError(f"File is not open")
@@ -122,12 +128,21 @@ class FvfFile(FlukeFile):
     def __readSector(self, sector):
         fmt = '<LLHHHH'
 
+        # data[0] sector begin offset
+        # data[1] sector size
+        # data[2] sector index
+        # data[3]
+        # data[4]
+        # data[5]
+
         if self.seek(28 + 16*sector) is None:
             raise RuntimeError(f"File is not open")
         if (sector >= len(self.__sectors)):
             raise ValueError(f"Sector index too large: {sector}")
 
-        self.__sectors[sector] = FlukeFile(f'{self.filePath}:{sector}', FvfSector(self, *struct.unpack(fmt, self.read(struct.calcsize(fmt)))))
+        data = struct.unpack(fmt, self.read(struct.calcsize(fmt)))
+
+        self.__sectors[sector] = FlukeFile(f'{self.filePath}:{sector}', FvfSector(self, *data[0:3]))
 
 
     @property
